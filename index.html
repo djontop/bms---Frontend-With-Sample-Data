@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battery Management System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            padding: 20px;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-card h2 {
+            color: #94a3b8;
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e293b;
+            font-feature-settings: "tnum";
+        }
+
+        .metric-unit {
+            font-size: 16px;
+            color: #64748b;
+            margin-left: 4px;
+        }
+
+        .health-indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background-color: #e2e8f0;
+            border-radius: 6px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 25px;
+            height: 400px;
+        }
+
+        .chart-container h2 {
+            color: #94a3b8;
+            font-size: 18px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            position: relative;
+        }
+
+        .status-normal {
+            background-color: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+        }
+
+        .status-warning {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+        }
+
+        .status-error {
+            background-color: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        .alerts-list {
+            margin-top: 15px;
+            padding-left: 25px;
+        }
+
+        .alert-item {
+            color: #ef4444;
+            margin-bottom: 8px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .alert-item::before {
+            content: "⚠️";
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+
+            .metric-card {
+                padding: 20px;
+            }
+
+            .metric-value {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Battery Management System</h1>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h2>Voltage</h2>
+                <span id="voltage-value" class="metric-value">0</span>
+                <span class="metric-unit">V</span>
+            </div>
+            <div class="metric-card">
+                <h2>Current</h2>
+                <span id="current-value" class="metric-value">0</span>
+                <span class="metric-unit">A</span>
+            </div>
+            <div class="metric-card">
+                <h2>Temperature</h2>
+                <span id="temperature-value" class="metric-value">0</span>
+                <span class="metric-unit">°C</span>
+            </div>
+        </div>
+
+        <div class="health-indicators">
+            <div class="metric-card">
+                <h2>State of Charge (SOC)</h2>
+                <span id="soc-value" class="metric-value">0</span>
+                <span class="metric-unit">%</span>
+                <div class="progress-bar">
+                    <div id="soc-bar" class="progress-fill" style="width: 0%; background-color: #2196f3;"></div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <h2>State of Health (SOH)</h2>
+                <span id="soh-value" class="metric-value">0</span>
+                <span class="metric-unit">%</span>
+                <div class="progress-bar">
+                    <div id="soh-bar" class="progress-fill" style="width: 0%; background-color: #4caf50;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>Voltage History</h2>
+            <canvas id="voltageChart"></canvas>
+        </div>
+
+        <div class="status-card">
+            <h2>System Status</h2>
+            <div id="status-container">
+                <span id="status-indicator" class="status-indicator status-normal"></span>
+                <span id="status-text">Normal</span>
+            </div>
+            <ul id="alerts-list" class="alerts-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('voltageChart').getContext('2d');
+        const voltageChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Voltage (V)',
+                    data: [],
+                    borderColor: '#2193b0',
+                    backgroundColor: 'rgba(33, 147, 176, 0.1)',
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#2193b0',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        suggestedMin: 10,
+                        suggestedMax: 14,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                animation: {
+                    duration: 1000
+                }
+            }
+        });
+
+        let batteryData = {
+            voltage: 12.6,
+            current: 2.1,
+            temperature: 25,
+            stateOfCharge: 85,
+            stateOfHealth: 95,
+            status: 'Normal',
+            alerts: []
+        };
+
+        function updateUI(data) {
+            document.getElementById('voltage-value').textContent = data.voltage.toFixed(1);
+            document.getElementById('current-value').textContent = data.current.toFixed(1);
+            document.getElementById('temperature-value').textContent = data.temperature.toFixed(1);
+            document.getElementById('soc-value').textContent = data.stateOfCharge;
+            document.getElementById('soh-value').textContent = data.stateOfHealth;
+
+            document.getElementById('soc-bar').style.width = `${data.stateOfCharge}%`;
+            document.getElementById('soh-bar').style.width = `${data.stateOfHealth}%`;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString();
+            
+            voltageChart.data.labels.push(timeStr);
+            voltageChart.data.datasets[0].data.push(data.voltage);
+
+            if (voltageChart.data.labels.length > 10) {
+                voltageChart.data.labels.shift();
+                voltageChart.data.datasets[0].data.shift();
+            }
+            voltageChart.update();
+
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            const alertsList = document.getElementById('alerts-list');
+
+            statusText.textContent = data.status;
+            statusIndicator.className = 'status-indicator status-' + 
+                (data.status === 'Normal' ? 'normal' : 
+                 data.status === 'Warning' ? 'warning' : 'error');
+
+            alertsList.innerHTML = data.alerts
+                .map(alert => `<li class="alert-item">${alert}</li>`)
+                .join('');
+        }
+
+        function simulateData() {
+            // Simulate voltage fluctuation
+            batteryData.voltage += (Math.random() - 0.5) * 0.2;
+            batteryData.voltage = Math.max(11, Math.min(13.5, batteryData.voltage));
+
+            // Simulate current fluctuation
+            batteryData.current += (Math.random() - 0.5) * 0.1;
+            batteryData.current = Math.max(0, Math.min(5, batteryData.current));
+
+            // Simulate temperature fluctuation
+            batteryData.temperature += (Math.random() - 0.5) * 0.5;
+            batteryData.temperature = Math.max(20, Math.min(40, batteryData.temperature));
+
+            // Update status and alerts based on conditions
+            if (batteryData.temperature > 35) {
+                batteryData.status = 'Warning';
+                if (!batteryData.alerts.includes('High Temperature')) {
+                    batteryData.alerts.push('High Temperature');
+                }
+            } else if (batteryData.voltage < 11.5) {
+                batteryData.status = 'Warning';
+                if (!batteryData.alerts.includes('Low Voltage')) {
+                    batteryData.alerts.push('Low Voltage');
+                }
+            } else {
+                batteryData.status = 'Normal';
+                batteryData.alerts = [];
+            }
+
+            updateUI(batteryData);
+        }
+
+        setInterval(simulateData, 2000);
+
+        simulateData();
+
+        function connectToArduino() {
+            const ws = new WebSocket('ws://your-arduino-ip:port');
+            
+            ws.onopen = () => {
+                console.log('Connected to Arduino');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected from Arduino');
+                // Attempt to reconnect
+                setTimeout(connectToArduino, 5000);
+            };
+        }
+
+        // Uncomment to enable WebSocket connection
+        // connectToArduino();
+    </script>
+</body>
+</html>
